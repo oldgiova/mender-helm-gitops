@@ -1,0 +1,18 @@
+apiVersion: v1
+appVersion: saas-v20XX.XX.XX
+description: Mender is a robust and secure way to update all your software and deploy
+  your IoT devices at scale with support for customization
+home: https://mender.io
+icon: https://github.com/mendersoftware/mender/raw/master/mender_logo.png
+keywords:
+- mender
+- iot
+- ota
+maintainers:
+- email: contact@northern.tech
+  name: Northern.tech AS
+  url: https://northern.tech
+name: mender
+sources:
+- https://github.com/oldgiova/mender-helm-gitops
+version: 0.0.17

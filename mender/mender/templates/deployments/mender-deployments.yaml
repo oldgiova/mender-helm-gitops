@@ -1,0 +1,82 @@
+{{- if .Values.deployments.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mender-deployments
+  namespace: {{ .Release.Namespace }}
+  labels:
+    run: mender-deployments
+    app.kubernetes.io/name: mender-deployments
+    {{- include "mender.labels" . | nindent 4 }}
+spec:
+  progressDeadlineSeconds: 600
+  {{- if not .Values.deployments.autoscaling.enabled }}
+  replicas: {{ .Values.global.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      run: mender-deployments
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      {{- with .Values.deployments.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        run: mender-deployments
+    spec:
+      {{- with .Values.deployments.affinity }}
+      affinity: {{ tpl (toYaml .) $ | nindent 8 }}
+      {{- end }}
+{{- if .Values.global.s3.AWS_SERVICE_ACCOUNT_NAME }}
+      serviceAccountName: {{ .Values.global.s3.AWS_SERVICE_ACCOUNT_NAME }}
+{{- end }}
+      containers:
+      - name: mender-deployments
+        image: {{ .Values.deployments.image.registry }}/{{ .Values.deployments.image.repository }}:{{ .Values.deployments.image.tag | default .Chart.AppVersion }}
+        imagePullPolicy: {{ .Values.deployments.image.imagePullPolicy }}
+        resources:
+{{ toYaml .Values.deployments.resources | indent 10 }}
+        readinessProbe:
+          httpGet:
+            path: /api/internal/v1/deployments/health
+            port: 8080
+          periodSeconds: 15
+        livenessProbe:
+          httpGet:
+            path: /api/internal/v1/deployments/alive
+            port: 8080
+          periodSeconds: 5
+        startupProbe:
+          httpGet:
+            path: /api/internal/v1/deployments/alive
+            port: 8080
+          failureThreshold: 36
+          periodSeconds: 5
+        env:
+        - name: DEPLOYMENTS_MIDDLEWARE
+          value: {{ .Values.deployments.env.DEPLOYMENTS_MIDDLEWARE | quote }}
+        - name: DEPLOYMENTS_AWS_TAG_ARTIFACT
+          value: {{ .Values.deployments.env.DEPLOYMENTS_AWS_TAG_ARTIFACT | quote }}
+        - name: DEPLOYMENTS_ENABLE_AUDIT
+          value: "true"
+        envFrom:
+        - prefix: DEPLOYMENTS_
+          secretRef:
+            name: mongodb-common
+        - prefix: DEPLOYMENTS_
+          secretRef:
+            name: mender-s3-artifacts
+        - prefix: DEPLOYMENTS_
+          secretRef:
+            name: mender-presign-secret
+      imagePullSecrets:
+      - name: registry-mender-io-secret
+{{- with .Values.deployments.nodeSelector }}
+      nodeSelector: {{ toYaml . | nindent 8 }}
+{{- end }}
+{{- end }}

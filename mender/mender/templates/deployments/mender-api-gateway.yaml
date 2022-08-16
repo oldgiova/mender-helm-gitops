@@ -1,0 +1,113 @@
+{{- if .Values.api_gateway.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mender-api-gateway
+  namespace: {{ .Release.Namespace }}
+  labels:
+    run: mender-api-gateway
+    app.kubernetes.io/name: mender-api-gateway
+    {{- include "mender.labels" . | nindent 4 }}
+spec:
+  progressDeadlineSeconds: 600
+  {{- if not .Values.api_gateway.autoscaling.enabled }}
+  replicas: {{ .Values.global.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      run: mender-api-gateway
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      {{- with .Values.api_gateway.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        run: mender-api-gateway
+    spec:
+      {{- with .Values.api_gateway.affinity }}
+      affinity: {{ tpl (toYaml .) $ | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: mender-api-gateway
+        image: {{ .Values.api_gateway.image.registry }}/{{ .Values.api_gateway.image.repository }}:{{ .Values.api_gateway.image.tag }}
+        imagePullPolicy: {{ .Values.api_gateway.image.imagePullPolicy }}
+        args:
+            - --accesslog=true
+            - --accesslog.format=json
+{{- if .Values.api_gateway.dashboard }}
+            - --api=true
+            - --api.dashboard=true
+            - --api.insecure=true
+{{- end }}
+            - --entrypoints.http.address=:{{- .Values.api_gateway.service.httpPort }}
+            - --entrypoints.https.address=:{{- .Values.api_gateway.service.httpsPort }}
+            - --entryPoints.https.transport.respondingTimeouts.idleTimeout=7200
+            - --entryPoints.https.transport.respondingTimeouts.readTimeout=7200
+            - --entryPoints.https.transport.respondingTimeouts.writeTimeout=7200
+            - --metrics=true
+            - --metrics.prometheus=true
+            - --metrics.prometheus.buckets=0.100000,0.300000,1.200000,5.000000
+            - --metrics.prometheus.addEntryPointsLabels=true
+            - --metrics.prometheus.addServicesLabels=true
+            - --providers.file.filename=/etc/traefik/config/traefik.yaml
+            - --ping=true
+            - --ping.manualrouting=true
+        resources:
+{{ toYaml .Values.api_gateway.resources | indent 10 }}
+        ports:
+{{- if .Values.api_gateway.env.SSL }}
+        - containerPort: 443
+{{- end }}
+        - containerPort: 80
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        readinessProbe:
+          failureThreshold: 1
+          httpGet:
+            path: /healthz
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        startupProbe:
+          failureThreshold: 30
+          httpGet:
+            path: /healthz
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: mender-api-gateway-traefik
+          mountPath: /etc/traefik/config/traefik.yaml
+          subPath: traefik.yaml
+          readOnly: true
+{{- if .Values.api_gateway.env.SSL }}
+        - name: server-cert
+          mountPath: /etc/traefik/certs
+          readOnly: true
+{{- end }}
+{{- with .Values.api_gateway.nodeSelector }}
+      nodeSelector: {{ toYaml . | nindent 8 }}
+{{- end }}
+      volumes:
+      - name: mender-api-gateway-traefik
+        configMap:
+          name: mender-api-gateway-traefik
+{{- if .Values.api_gateway.env.SSL }}
+      - name: server-cert
+        secret:
+          defaultMode: 420
+          secretName: mender-wildcard-keycert
+{{- end }}
+      imagePullSecrets:
+      - name: docker-hub-secret
+{{- end }}

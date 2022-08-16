@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mender-gateway-address
+  labels:
+    run: mender-gateway-address
+    app.kubernetes.io/name: mender-gateway-address
+    {{- include "mender.labels" . | nindent 4 }}
+data:
+  GATEWAY_IP: {{ .Values.global.url }}
+  GATEWAY_PORT: "443"

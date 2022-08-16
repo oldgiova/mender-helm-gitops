@@ -1,0 +1,269 @@
+global:
+  enterprise: true
+  hosted: false
+  image:
+    registry: registry.mender.io
+  s3:
+    TODO: yes
+  url: mender.example.org
+
+api_gateway:
+  enabled: false
+  podAnnotations: {}
+  dashboard: false
+  image:
+    registry: docker.io
+    repository: traefik
+    tag: v2.5
+    imagePullPolicy: IfNotPresent
+  nodeSelector: {}
+  affinity:
+    nodeAffinity: {}
+    #   requiredDuringSchedulingIgnoredDuringExecution:
+    #     nodeSelectorTerms:
+    #     - matchExpressions:
+    #       - key: node.kubernetes.io/instance-type
+    #         operator: In
+    #         values:
+    #         - c5.large
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: run
+              operator: In
+              values:
+              - mender-api-gateway
+          topologyKey: topology.kubernetes.io/zone
+        weight: 100
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: run
+            operator: In
+            values:
+            - mender-api-gateway
+        topologyKey: kubernetes.io/hostname
+  service:
+    name: mender-api-gateway
+    annotations: {}
+    type: ClusterIP
+    httpPort: 80
+    httpsPort: 443
+  env:
+    SSL: true
+  resources:
+    limits:
+      cpu: 600m
+      memory: 1G
+    requests:
+      cpu: 600m
+      memory: 512M
+  minio:
+    enabled: true
+    url: http://minio:9000
+  rateLimit:
+    ratelimit:
+      average: 100
+      burst: 100
+      period: 1s
+      sourcecriterion:
+        ipstrategy:
+          depth: 1
+  autoscaling:
+    enabled: true
+
+deployments:
+  enabled: false
+  podAnnotations: {}
+  image:
+    registry: registry.mender.io
+    repository: mendersoftware/deployments-enterprise
+    imagePullPolicy: IfNotPresent
+  nodeSelector: {}
+  affinity:
+    nodeAffinity: {}
+    #   requiredDuringSchedulingIgnoredDuringExecution:
+    #     nodeSelectorTerms:
+    #     - matchExpressions:
+    #       - key: node.kubernetes.io/instance-type
+    #         operator: In
+    #         values:
+    #         - c5.large
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: run
+              operator: In
+              values:
+              - mender-deployments
+          topologyKey: topology.kubernetes.io/zone
+        weight: 100
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: run
+            operator: In
+            values:
+            - mender-deployments
+        topologyKey: kubernetes.io/hostname
+  resources:
+    limits:
+      cpu: 600m
+    requests:
+      cpu: 600m
+      memory: 64M
+  env:
+    DEPLOYMENTS_MIDDLEWARE: poc
+    DEPLOYMENTS_AWS_TAG_ARTIFACT: true
+  service:
+    name: mender-deployments
+    annotations: {}
+    type: ClusterIP
+    port: 8080
+  autoscaling:
+    enabled: true
+
+device_auth:
+  enabled: true
+  service:
+    name: mender-device-auth
+    annotations: {}
+    type: ClusterIP
+    port: 8080
+
+gui:
+  enabled: true
+  podAnnotations: {}
+  image:
+    registry: docker.io
+    repository: mendersoftware/gui
+    imagePullPolicy: IfNotPresent
+    tag: saas-v20XX.XX.XX
+  nodeSelector: {}
+  affinity:
+    nodeAffinity: {}
+    #   requiredDuringSchedulingIgnoredDuringExecution:
+    #     nodeSelectorTerms:
+    #     - matchExpressions:
+    #       - key: node.kubernetes.io/instance-type
+    #         operator: In
+    #         values:
+    #         - c5.large
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: run
+              operator: In
+              values:
+              - mender-gui
+          topologyKey: topology.kubernetes.io/zone
+        weight: 100
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: run
+            operator: In
+            values:
+            - mender-gui
+        topologyKey: kubernetes.io/hostname
+  env:
+    INTEGRATION_VERSION: 3.3.0
+    MENDER_VERSION: 3.3.0
+    MENDER_ARTIFACT_VERSION: 3.7.1
+    TRACKER_CODE: dummy-tracker-code
+    HAPPYFOX_KEY: dummy-happyfox-key
+  resources:
+    requests:
+      cpu: 5m
+      memory: 16M
+  service:
+    name: mender-gui
+    annotations: {}
+    type: ClusterIP
+    port: 80
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  autoscaling:
+    enabled: true
+
+inventory:
+  enabled: true
+  service:
+    name: mender-inventory
+    annotations: {}
+    type: ClusterIP
+    port: 8080
+
+tenantadm:
+  enabled: true
+  service:
+    name: mender-tenantadm
+    annotations: {}
+    type: ClusterIP
+    port: 8080
+
+useradm:
+  enabled: true
+  service:
+    name: mender-useradm
+    annotations: {}
+    type: ClusterIP
+    port: 8080
+
+workflows:
+  enabled: true
+  service:
+    name: mender-workflows-server
+    annotations: {}
+    type: ClusterIP
+    port: 8080
+
+
+auditlogs:
+  enabled: false
+  service:
+    name: mender-auditlogs
+    annotations: {}
+    type: ClusterIP
+    port: 8080
+
+iot_manager:
+  enabled: true
+  service:
+    name: mender-iot-manager
+    annotations: {}
+    type: ClusterIP
+    port: 8080
+
+deviceconnect:
+  enabled: false
+  service:
+    name: mender-deviceconnect
+    annotations: {}
+    type: ClusterIP
+    port: 8080
+
+deviceconfig:
+  enabled: false
+  service:
+    name: mender-deviceconfig
+    annotations: {}
+    type: ClusterIP
+    port: 8080
+
+devicemonitor:
+  enabled: false
+  service:
+    name: mender-devicemonitor
+    annotations: {}
+    type: ClusterIP
+    port: 8080
+
